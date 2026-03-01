@@ -1,0 +1,8 @@
+name = "summitgroup-facebook-leads"
+main = "index.js"
+compatibility_date = "2024-12-01"
+
+workers_dev = true
+
+[vars]
+VERIFY_TOKEN = "summitflow123"
