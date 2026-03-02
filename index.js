@@ -214,14 +214,29 @@ async function createJWT(env) {
 
   const key = await crypto.subtle.importKey(
     "pkcs8",
-    pemToArrayBuffer(env.PRIVATE_KEY),
-    {
-      name: "RSASSA-PKCS1-v1_5",
-      hash: "SHA-256"
-    },
-    false,
-    ["sign"]
-  );
+    function pemToArrayBuffer(pem) {
+
+  // Convert escaped newlines into real newlines
+  pem = pem.replace(/\\n/g, '\n').trim();
+
+  // Remove header, footer, and all whitespace safely
+  const base64 = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, "")
+    .replace(/-----END PRIVATE KEY-----/, "")
+    .replace(/\s+/g, "");
+
+  // Decode base64
+  const binary = atob(base64);
+
+  const buffer = new ArrayBuffer(binary.length);
+  const view = new Uint8Array(buffer);
+
+  for (let i = 0; i < binary.length; i++) {
+    view[i] = binary.charCodeAt(i);
+  }
+
+  return buffer;
+}
 
   const signature = await crypto.subtle.sign(
     "RSASSA-PKCS1-v1_5",
