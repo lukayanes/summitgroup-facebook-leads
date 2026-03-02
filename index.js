@@ -158,3 +158,112 @@ export default {
 
   }
 };
+
+async function getAccessToken(env) {
+
+  const jwt = await createJWT(env);
+
+  const res = await fetch(
+    "https://oauth2.googleapis.com/token",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded"
+      },
+      body:
+        `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+    }
+  );
+
+  const data = await res.json();
+
+  return data.access_token;
+
+}
+
+
+
+async function createJWT(env) {
+
+  const header = {
+    alg: "RS256",
+    typ: "JWT"
+  };
+
+  const now = Math.floor(Date.now() / 1000);
+
+  const payload = {
+    iss: env.CLIENT_EMAIL,
+    scope:
+      "https://www.googleapis.com/auth/spreadsheets",
+    aud:
+      "https://oauth2.googleapis.com/token",
+    exp: now + 3600,
+    iat: now
+  };
+
+  const encode = obj =>
+    btoa(JSON.stringify(obj))
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+
+  const unsigned =
+    `${encode(header)}.${encode(payload)}`;
+
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToArrayBuffer(env.PRIVATE_KEY),
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      hash: "SHA-256"
+    },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    new TextEncoder().encode(unsigned)
+  );
+
+  const signed =
+    btoa(
+      String.fromCharCode(
+        ...new Uint8Array(signature)
+      )
+    )
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+
+  return `${unsigned}.${signed}`;
+
+}
+
+
+
+function pemToArrayBuffer(pem) {
+
+  const base64 = pem
+    .replace("-----BEGIN PRIVATE KEY-----", "")
+    .replace("-----END PRIVATE KEY-----", "")
+    .replace(/\n/g, "");
+
+  const binary = atob(base64);
+
+  const buffer = new ArrayBuffer(binary.length);
+
+  const view = new Uint8Array(buffer);
+
+  for (let i = 0; i < binary.length; i++) {
+
+    view[i] = binary.charCodeAt(i);
+
+  }
+
+  return buffer;
+
+}
