@@ -8,8 +8,23 @@ export default {
       const body = await request.json();
       const now = new Date();
 
-      const firstName = body.first_name || body.firstName || "";
-      const lastName = body.last_name || body.lastName || "";
+      const fullName = body.name || body.full_name || "";
+
+      const firstName =
+        body.first_name ||
+        body.firstName ||
+        (fullName ? fullName.trim().split(" ").slice(0, 1).join("") : "");
+
+      const lastName =
+        body.last_name ||
+        body.lastName ||
+        (fullName ? fullName.trim().split(" ").slice(1).join(" ") : "");
+
+      const phone =
+        body.phone || body.phone_number || body.phoneNumber || "";
+
+      const email =
+        body.email || body.email_address || body.emailAddress || "";
 
       const street = body.address1 || body.address || "";
       const city = body.city || "";
@@ -24,12 +39,47 @@ export default {
         postalCode
       ].filter(Boolean).join(", ");
 
+      console.log("Incoming Lead:", body);
+      console.log("Resolved fullAddress:", fullAddress);
+
+      /* =========================================
+         GEOCODE ADDRESS (LAT / LON)
+      ========================================= */
+
+      let latitude = "";
+      let longitude = "";
+
+      if (fullAddress) {
+        try {
+          const geo = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullAddress)}&format=json&limit=1`,
+            {
+              headers: {
+                "User-Agent": "SummitGroupLeadSystem"
+              }
+            }
+          );
+
+          const gdata = await geo.json();
+
+          if (gdata && gdata.length > 0) {
+            latitude = gdata[0].lat || "";
+            longitude = gdata[0].lon || "";
+          }
+
+          console.log("Geocoded lat/lon:", latitude, longitude);
+        } catch (err) {
+          console.log("Geocode failed:", err);
+        }
+      }
+
       /* =========================================
          GET ZILLOW DATA
       ========================================= */
 
       let zestimate = "";
-      let status = "";
+      let zillowStatus = "";
+      let listed = body.listed || "";
 
       if (fullAddress) {
         try {
@@ -50,9 +100,60 @@ export default {
           const prop = zdata.property || zdata;
 
           zestimate = prop?.zestimate || "";
-          status = prop?.homeStatus || "";
+          zillowStatus = prop?.homeStatus || "";
         } catch (err) {
           console.log("Zillow lookup failed:", err);
+        }
+      }
+
+      /* =========================================
+         REVERSE GEOCODE FOR GEOLOCATION
+      ========================================= */
+
+      let geoLocation = "";
+      let geoUnder100 = "No";
+
+      if (latitude && longitude) {
+        try {
+          const geo = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+            {
+              headers: {
+                "User-Agent": "SummitGroupLeadSystem"
+              }
+            }
+          );
+
+          const gdata = await geo.json();
+
+          const geoCity =
+            gdata?.address?.city ||
+            gdata?.address?.town ||
+            gdata?.address?.village ||
+            "";
+
+          const geoState = gdata?.address?.state || "";
+          const geoCounty = gdata?.address?.county || "";
+
+          geoLocation = [geoCity, geoState, geoCounty]
+            .filter(Boolean)
+            .join(", ");
+        } catch (err) {
+          console.log("Reverse geocode failed:", err);
+        }
+
+        for (const metro of majorCities) {
+          const dist = distanceMiles(
+            Number(latitude),
+            Number(longitude),
+            metro.lat,
+            metro.lon
+          );
+
+          if (dist <= 100) {
+            geoUnder100 = "Yes";
+            break;
+          }
         }
       }
 
@@ -64,56 +165,55 @@ export default {
       const userAgent =
         request.headers.get("user-agent") || "";
 
- const row = [
-  now.toLocaleString(),                         // Date
-  firstName,                                   // First Name
-  lastName,                                    // Last Name
-  fullAddress,                                 // Address
-  body.phone || "",                            // PhoneNumber
-  body.email || "",                            // Email
+      const row = [
+        new Date().toLocaleString("en-US", { timeZone: "America/Chicago" }), // Date
+        firstName,                                   // First Name
+        lastName,                                    // Last Name
+        fullAddress,                                 // Address
+        phone,                                       // PhoneNumber
+        email,                                       // Email
 
-  "",                                          // blank col 7
-  "",                                          // blank col 8
-  "",                                          // blank col 9
-  "",                                          // blank col 10
-  "",                                          // blank col 11
+        "",                                          // blank 1
+        "",                                          // blank 2
+        "",                                          // blank 3
+        "",                                          // blank 4
+        "",                                          // blank 5
 
-  "",                                          // Motivation Scale
-  "Lead",                                      // Disposition
-  "",                                          // Deal Spread
-  "",                                          // Contract Date
-  "",                                          // Notes
-
-  body.motivation || "",                       // Motivation
-  body.asking_price || "",                     // AskingPrice
-  body.listed || "",                           // Listed
-  zestimate,                                   // Zestimate
-  "Lead",                                      // Status
-  body.geolocation || "",                      // Geolocation
-  body.geo_under_100 || body["geo<100"] || "", // Geo <100
-  body.fb_event_name || "Lead",                // FB_Event_Name
-  body.fb_event_time || now.toISOString(),     // FB_Event_Time
-  body.fb_value || "",                         // FB_Value
-  body.fb_currency || "USD",                   // FB_Currency
-  body.fb_sent || "",                          // FB_Sent
-  city,                                        // City
-  state,                                       // State
-  postalCode,                                  // Postal Code
-  country,                                     // Country
-  body.fbclid || "",                           // FBCLID
-  body.fbc || "",                              // FBC
-  body.fbp || "",                              // FBP
-  body.utm_source || "",                       // utm_source
-  body.utm_campaign_name || "",                // utm_campaign_name
-  body.utm_campaign || "",                     // utm_campaign
-  body.utm_adgroup || "",                      // utm_adgroup
-  body.utm_ad || "",                           // utm_ad
-  body.utm_term || "",                         // utm_term
-  body.utm_device || "",                       // utm_device
-  ip,                                          // IP
-  userAgent,                                   // User Agent
-  body.url || request.headers.get("referer") || "" // URL
-];
+        "",                                          // Motivation Scale
+        "Lead",                                      // Disposition
+        "",                                          // Deal Spread
+        "",                                          // Contract Date
+        "",                                          // Notes
+        body.motivation || "",                       // Motivation
+        body.asking_price || "",                     // AskingPrice
+        listed,                                      // Listed
+        zestimate,                                   // Zestimate
+        zillowStatus,                                // Status
+        geoLocation,                                 // Geolocation
+        geoUnder100,                                 // Geo <100
+        body.fb_event_name || "Lead",                // FB_Event_Name
+        body.fb_event_time || now.toISOString(),     // FB_Event_Time
+        body.fb_value || "",                         // FB_Value
+        body.fb_currency || "USD",                   // FB_Currency
+        body.fb_sent || "",                          // FB_Sent
+        city,                                        // City
+        state,                                       // State
+        postalCode,                                  // Postal Code
+        country,                                     // Country
+        body.fbclid || "",                           // FBCLID
+        body.fbc || "",                              // FBC
+        body.fbp || "",                              // FBP
+        body.utm_source || "",                       // utm_source
+        body.utm_campaign_name || "",                // utm_campaign_name
+        body.utm_campaign || "",                     // utm_campaign
+        body.utm_adgroup || "",                      // utm_adgroup
+        body.utm_ad || "",                           // utm_ad
+        body.utm_term || "",                         // utm_term
+        body.utm_device || "",                       // utm_device
+        ip,                                          // IP
+        userAgent,                                   // User Agent
+        body.url || request.headers.get("referer") || "" // URL
+      ];
 
       const token = await getAccessToken(env);
 
@@ -142,10 +242,107 @@ export default {
 
       return new Response("Success");
     } catch (err) {
+      console.error("Worker Error:", err);
       return new Response(err.toString(), { status: 500 });
     }
   }
 };
+
+/* =========================================
+MAJOR U.S. METRO AREAS
+========================================= */
+const majorCities = [
+  { name: "New York", lat: 40.7128, lon: -74.0060 },
+  { name: "Los Angeles", lat: 34.0522, lon: -118.2437 },
+  { name: "Chicago", lat: 41.8781, lon: -87.6298 },
+  { name: "Dallas", lat: 32.7767, lon: -96.7970 },
+  { name: "Houston", lat: 29.7604, lon: -95.3698 },
+  { name: "Washington", lat: 38.9072, lon: -77.0369 },
+  { name: "Miami", lat: 25.7617, lon: -80.1918 },
+  { name: "Philadelphia", lat: 39.9526, lon: -75.1652 },
+  { name: "Atlanta", lat: 33.7490, lon: -84.3880 },
+  { name: "Boston", lat: 42.3601, lon: -71.0589 },
+  { name: "Phoenix", lat: 33.4484, lon: -112.0740 },
+  { name: "San Francisco", lat: 37.7749, lon: -122.4194 },
+  { name: "Riverside", lat: 33.9806, lon: -117.3755 },
+  { name: "Detroit", lat: 42.3314, lon: -83.0458 },
+  { name: "Seattle", lat: 47.6062, lon: -122.3321 },
+  { name: "Minneapolis", lat: 44.9778, lon: -93.2650 },
+  { name: "San Diego", lat: 32.7157, lon: -117.1611 },
+  { name: "Tampa", lat: 27.9506, lon: -82.4572 },
+  { name: "Denver", lat: 39.7392, lon: -104.9903 },
+  { name: "Baltimore", lat: 39.2904, lon: -76.6122 },
+  { name: "St Louis", lat: 38.6270, lon: -90.1994 },
+  { name: "Charlotte", lat: 35.2271, lon: -80.8431 },
+  { name: "Orlando", lat: 28.5383, lon: -81.3792 },
+  { name: "San Antonio", lat: 29.4241, lon: -98.4936 },
+  { name: "Portland", lat: 45.5152, lon: -122.6784 },
+  { name: "Sacramento", lat: 38.5816, lon: -121.4944 },
+  { name: "Pittsburgh", lat: 40.4406, lon: -79.9959 },
+  { name: "Las Vegas", lat: 36.1699, lon: -115.1398 },
+  { name: "Austin", lat: 30.2672, lon: -97.7431 },
+  { name: "Cincinnati", lat: 39.1031, lon: -84.5120 },
+  { name: "Kansas City", lat: 39.0997, lon: -94.5786 },
+  { name: "Columbus", lat: 39.9612, lon: -82.9988 },
+  { name: "Indianapolis", lat: 39.7684, lon: -86.1581 },
+  { name: "Cleveland", lat: 41.4993, lon: -81.6944 },
+  { name: "San Jose", lat: 37.3382, lon: -121.8863 },
+  { name: "Nashville", lat: 36.1627, lon: -86.7816 },
+  { name: "Virginia Beach", lat: 36.8529, lon: -75.9780 },
+  { name: "Providence", lat: 41.8240, lon: -71.4128 },
+  { name: "Milwaukee", lat: 43.0389, lon: -87.9065 },
+  { name: "Jacksonville", lat: 30.3322, lon: -81.6557 },
+  { name: "Memphis", lat: 35.1495, lon: -90.0490 },
+  { name: "Richmond", lat: 37.5407, lon: -77.4360 },
+  { name: "Louisville", lat: 38.2527, lon: -85.7585 },
+  { name: "Oklahoma City", lat: 35.4676, lon: -97.5164 },
+  { name: "Raleigh", lat: 35.7796, lon: -78.6382 },
+  { name: "Salt Lake City", lat: 40.7608, lon: -111.8910 },
+  { name: "Birmingham", lat: 33.5186, lon: -86.8104 },
+  { name: "Buffalo", lat: 42.8864, lon: -78.8784 },
+  { name: "Grand Rapids", lat: 42.9634, lon: -85.6681 },
+  { name: "Bridgeport", lat: 41.1792, lon: -73.1894 },
+  { name: "Tucson", lat: 32.2226, lon: -110.9747 },
+  { name: "Fresno", lat: 36.7378, lon: -119.7871 },
+  { name: "Hartford", lat: 41.7658, lon: -72.6734 },
+  { name: "Omaha", lat: 41.2565, lon: -95.9345 },
+  { name: "El Paso", lat: 31.7619, lon: -106.4850 },
+  { name: "Greenville", lat: 34.8526, lon: -82.3940 },
+  { name: "Albuquerque", lat: 35.0844, lon: -106.6504 },
+  { name: "Tulsa", lat: 36.1540, lon: -95.9928 },
+  { name: "Knoxville", lat: 35.9606, lon: -83.9207 },
+  { name: "Bakersfield", lat: 35.3733, lon: -119.0187 },
+  { name: "Boise", lat: 43.6150, lon: -116.2023 },
+  { name: "Dayton", lat: 39.7589, lon: -84.1916 },
+  { name: "Des Moines", lat: 41.5868, lon: -93.6250 },
+  { name: "Madison", lat: 43.0731, lon: -89.4012 },
+  { name: "Spokane", lat: 47.6588, lon: -117.4260 },
+  { name: "Little Rock", lat: 34.7465, lon: -92.2896 },
+  { name: "Akron", lat: 41.0814, lon: -81.5190 },
+  { name: "Toledo", lat: 41.6528, lon: -83.5379 },
+  { name: "Columbia", lat: 34.0007, lon: -81.0348 },
+  { name: "Charleston", lat: 32.7765, lon: -79.9311 }
+];
+
+/* =========================================
+DISTANCE CALCULATOR
+========================================= */
+function distanceMiles(lat1, lon1, lat2, lon2) {
+  const R = 3958.8;
+  const toRad = d => d * Math.PI / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) ** 2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 /* GOOGLE ACCESS TOKEN */
 async function getAccessToken(env) {
