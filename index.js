@@ -180,7 +180,7 @@ export default {
         "",                                          // blank 5
 
         "",                                          // Motivation Scale
-        "Lead",                                      // Disposition
+        "",                                      // Disposition
         "",                                          // Deal Spread
         "",                                          // Contract Date
         "",                                          // Notes
