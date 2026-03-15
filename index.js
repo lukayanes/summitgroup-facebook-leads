@@ -65,49 +65,54 @@ export default {
         request.headers.get("user-agent") || "";
 
       const row = [
-        now.toLocaleString(),                        // Date
-        firstName,                                  // First Name
-        lastName,                                   // Last Name
-        fullAddress,                                // Address
-        body.phone || "",                           // PhoneNumber
-        body.email || "",                           // Email
+  now.toLocaleString(),                         // Date
+  firstName,                                   // First Name
+  lastName,                                    // Last Name
+  fullAddress,                                 // Address
+  body.phone || "",                            // PhoneNumber
+  body.email || "",                            // Email
 
-        "",                                         // Motivation Scale
-        "",                                         // Disposition
-        "",                                         // Deal Spread
-        "",                                         // Contract Date
-        "",                                         // Notes
+  "",                                          // blank col 7
+  "",                                          // blank col 8
+  "",                                          // blank col 9
+  "",                                          // blank col 10
 
-        body.motivation || "",                      // Motivation
-        body.asking_price || "",                    // AskingPrice
-        body.listed || "",                          // Listed
-        zestimate,                                  // Zestimate
-        status,                                     // Status
-        body.geolocation || "",                     // Geolocation
-        body.geo_under_100 || body["geo<100"] || "",// Geo <100
-        body.fb_event_name || "Lead",               // FB_Event_Name
-        body.fb_event_time || now.toISOString(),    // FB_Event_Time
-        body.fb_value || "",                        // FB_Value
-        body.fb_currency || "USD",                  // FB_Currency
-        body.fb_sent || "",                         // FB_Sent
-        city,                                       // City
-        state,                                      // State
-        postalCode,                                 // Postal Code
-        country,                                    // Country
-        body.fbclid || "",                          // FBCLID
-        body.fbc || "",                             // FBC
-        body.fbp || "",                             // FBP
-        body.utm_source || "",                      // utm_source
-        body.utm_campaign_name || "",               // utm_campaign_name
-        body.utm_campaign || "",                    // utm_campaign
-        body.utm_adgroup || "",                     // utm_adgroup
-        body.utm_ad || "",                          // utm_ad
-        body.utm_term || "",                        // utm_term
-        body.utm_device || "",                      // utm_device
-        ip,                                         // IP
-        userAgent,                                  // User Agent
-        body.url || request.headers.get("referer") || "" // URL
-      ];
+  "",                                          // Motivation Scale
+  "",                                          // Disposition
+  "",                                          // Deal Spread
+  "",                                          // Contract Date
+  "",                                          // Notes
+
+  body.motivation || "",                       // Motivation
+  body.asking_price || "",                     // AskingPrice
+  body.listed || "",                           // Listed
+  zestimate,                                   // Zestimate
+  status,                                      // Status
+  body.geolocation || "",                      // Geolocation
+  body.geo_under_100 || body["geo<100"] || "", // Geo <100
+  body.fb_event_name || "Lead",                // FB_Event_Name
+  body.fb_event_time || now.toISOString(),     // FB_Event_Time
+  body.fb_value || "",                         // FB_Value
+  body.fb_currency || "USD",                   // FB_Currency
+  body.fb_sent || "",                          // FB_Sent
+  city,                                        // City
+  state,                                       // State
+  postalCode,                                  // Postal Code
+  country,                                     // Country
+  body.fbclid || "",                           // FBCLID
+  body.fbc || "",                              // FBC
+  body.fbp || "",                              // FBP
+  body.utm_source || "",                       // utm_source
+  body.utm_campaign_name || "",                // utm_campaign_name
+  body.utm_campaign || "",                     // utm_campaign
+  body.utm_adgroup || "",                      // utm_adgroup
+  body.utm_ad || "",                           // utm_ad
+  body.utm_term || "",                         // utm_term
+  body.utm_device || "",                       // utm_device
+  ip,                                          // IP
+  userAgent,                                   // User Agent
+  body.url || request.headers.get("referer") || "" // URL
+];
 
       const token = await getAccessToken(env);
 
