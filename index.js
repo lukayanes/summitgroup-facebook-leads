@@ -39,11 +39,8 @@ export default {
         postalCode
       ].filter(Boolean).join(", ");
 
-      console.log("Incoming Lead:", body);
-      console.log("Resolved fullAddress:", fullAddress);
-
       /* =========================================
-         GEOCODE ADDRESS (LAT / LON)
+         GEOCODE ADDRESS (GET LAT / LON)
       ========================================= */
 
       let latitude = "";
@@ -63,8 +60,8 @@ export default {
           const gdata = await geo.json();
 
           if (gdata && gdata.length > 0) {
-            latitude = gdata[0].lat || "";
-            longitude = gdata[0].lon || "";
+            latitude = gdata[0].lat;
+            longitude = gdata[0].lon;
           }
 
           console.log("Geocoded lat/lon:", latitude, longitude);
@@ -78,8 +75,7 @@ export default {
       ========================================= */
 
       let zestimate = "";
-      let zillowStatus = "";
-      let listed = body.listed || "";
+      let listed = "";
 
       if (fullAddress) {
         try {
@@ -100,14 +96,14 @@ export default {
           const prop = zdata.property || zdata;
 
           zestimate = prop?.zestimate || "";
-          zillowStatus = prop?.homeStatus || "";
+          listed = prop?.homeStatus || "";
         } catch (err) {
           console.log("Zillow lookup failed:", err);
         }
       }
 
       /* =========================================
-         REVERSE GEOCODE FOR GEOLOCATION
+         GEO LOCATION + CITY / STATE / COUNTY
       ========================================= */
 
       let geoLocation = "";
@@ -127,27 +123,25 @@ export default {
           const gdata = await geo.json();
 
           const geoCity =
-            gdata?.address?.city ||
-            gdata?.address?.town ||
-            gdata?.address?.village ||
+            gdata.address.city ||
+            gdata.address.town ||
+            gdata.address.village ||
             "";
 
-          const geoState = gdata?.address?.state || "";
-          const geoCounty = gdata?.address?.county || "";
+          const geoState = gdata.address.state || "";
+          const geoCounty = gdata.address.county || "";
 
-          geoLocation = [geoCity, geoState, geoCounty]
-            .filter(Boolean)
-            .join(", ");
+          geoLocation = `${geoCity}, ${geoState}, ${geoCounty}`;
         } catch (err) {
-          console.log("Reverse geocode failed:", err);
+          console.log("Geo lookup failed:", err);
         }
 
-        for (const metro of majorCities) {
+        for (const city of majorCities) {
           const dist = distanceMiles(
             Number(latitude),
             Number(longitude),
-            metro.lat,
-            metro.lon
+            city.lat,
+            city.lon
           );
 
           if (dist <= 100) {
@@ -162,8 +156,7 @@ export default {
         request.headers.get("x-forwarded-for") ||
         "";
 
-      const userAgent =
-        request.headers.get("user-agent") || "";
+      const userAgent = request.headers.get("user-agent") || "";
 
       const row = [
         new Date().toLocaleString("en-US", { timeZone: "America/New_York" }), // Date
@@ -173,22 +166,18 @@ export default {
         phone,                                       // PhoneNumber
         email,                                       // Email
 
-        "",                                          // blank 1
-        "",                                          // blank 2
-        "",                                          // blank 3
-        "",                                          // blank 4
-        "",                                          // blank 5
+        "", "", "", "", "",                         // blank cols
 
         "",                                          // Motivation Scale
-        "",                                      // Disposition
+        "Lead",                                      // Disposition
         "",                                          // Deal Spread
         "",                                          // Contract Date
         "",                                          // Notes
         body.motivation || "",                       // Motivation
         body.asking_price || "",                     // AskingPrice
-        listed,                                      // Listed
+        body.listed || "",                           // Listed
         zestimate,                                   // Zestimate
-        zillowStatus,                                // Status
+        listed,                                      // Status
         geoLocation,                                 // Geolocation
         geoUnder100,                                 // Geo <100
         body.fb_event_name || "Lead",                // FB_Event_Name
@@ -248,9 +237,6 @@ export default {
   }
 };
 
-/* =========================================
-MAJOR U.S. METRO AREAS
-========================================= */
 const majorCities = [
   { name: "New York", lat: 40.7128, lon: -74.0060 },
   { name: "Los Angeles", lat: 34.0522, lon: -118.2437 },
@@ -324,9 +310,6 @@ const majorCities = [
   { name: "Charleston", lat: 32.7765, lon: -79.9311 }
 ];
 
-/* =========================================
-DISTANCE CALCULATOR
-========================================= */
 function distanceMiles(lat1, lon1, lat2, lon2) {
   const R = 3958.8;
   const toRad = d => d * Math.PI / 180;
