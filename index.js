@@ -8,114 +8,82 @@ export default {
       const body = await request.json();
       const now = new Date();
 
-      const fullName = body.name || body.full_name || "";
+      console.log("RAW BODY:", JSON.stringify(body, null, 2));
 
-      const firstName =
-        body.first_name ||
-        body.firstName ||
-        (fullName ? fullName.trim().split(" ").slice(0, 1).join("") : "");
+      const firstName = body.first_name || body.firstName || "";
+      const lastName = body.last_name || body.lastName || "";
 
-      const lastName =
-        body.last_name ||
-        body.lastName ||
-        (fullName ? fullName.trim().split(" ").slice(1).join(" ") : "");
-
-      const phone =
-        body.phone || body.phone_number || body.phoneNumber || "";
-
-      const email =
-        body.email || body.email_address || body.emailAddress || "";
-
-      const street = body.address1 || body.address || "";
       const city = body.city || "";
       const state = body.state || "";
       const postalCode = body.postal_code || body.postalCode || body.zip || "";
       const country = body.country || "US";
 
-      const fullAddress = [
-        street,
+      let fullAddress = "";
+
+      if (body.address) {
+        fullAddress = body.address.trim();
+      } else if (body.address1 && body.address1.includes(",")) {
+        fullAddress = body.address1.trim();
+      } else {
+        fullAddress = [
+          body.address1 || "",
+          city,
+          state,
+          postalCode,
+          country
+        ].filter(Boolean).join(", ");
+      }
+
+      console.log("Address fields received:", {
+        address: body.address,
+        address1: body.address1,
         city,
         state,
-        postalCode
-      ].filter(Boolean).join(", ");
-/* =========================================
-   GEO LOCATION + CITY / STATE / COUNTY
-========================================= */
+        postal_code: body.postal_code,
+        country,
+        fullAddress
+      });
 
-let geoLocation = "";
-let geoUnder100 = "No";
+      /* =========================================
+         GET GEOCODE FROM ADDRESS
+      ========================================= */
 
-if (latitude && longitude) {
-  try {
-    const geo = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
-      {
-        headers: {
-          "User-Agent": "SummitGroupLeadSystem"
+      let latitude = "";
+      let longitude = "";
+      let geoLocation = "";
+      let geoUnder100 = "No";
+
+      if (fullAddress) {
+        try {
+          const geo = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullAddress)}&format=json&limit=1`,
+            {
+              headers: {
+                "User-Agent": "SummitGroupLeadSystem"
+              }
+            }
+          );
+
+          const gdata = await geo.json();
+          console.log("Forward geocode response:", gdata);
+
+          if (gdata && gdata.length > 0) {
+            latitude = gdata[0].lat;
+            longitude = gdata[0].lon;
+          }
+
+          console.log("Geocoded lat/lon:", latitude, longitude);
+        } catch (err) {
+          console.log("Geocode failed:", err);
         }
       }
-    );
 
-    const gdata = await geo.json();
-    console.log("Reverse geocode response:", gdata);
-
-    const addr = gdata.address || {};
-
-    const primaryPlace =
-      addr.city ||
-      addr.town ||
-      addr.village ||
-      addr.hamlet ||
-      addr.municipality ||
-      addr.suburb ||
-      addr.neighbourhood ||
-      "";
-
-    const stateName = addr.state || "";
-
-    let thirdPlace =
-      addr.county ||
-      addr.suburb ||
-      addr.neighbourhood ||
-      addr.city_district ||
-      "";
-
-    if (
-      thirdPlace &&
-      primaryPlace &&
-      thirdPlace.toLowerCase() === primaryPlace.toLowerCase()
-    ) {
-      thirdPlace = "";
-    }
-
-    geoLocation = [primaryPlace, stateName, thirdPlace]
-      .filter(Boolean)
-      .join(", ");
-
-  } catch (err) {
-    console.log("Geo lookup failed:", err);
-  }
-
-  for (const city of majorCities) {
-    const dist = distanceMiles(
-      Number(latitude),
-      Number(longitude),
-      city.lat,
-      city.lon
-    );
-
-    if (dist <= 100) {
-      geoUnder100 = "Yes";
-      break;
-    }
-  }
-}
       /* =========================================
          GET ZILLOW DATA
       ========================================= */
 
       let zestimate = "";
-      let listed = "";
+      let status = "";
 
       if (fullAddress) {
         try {
@@ -136,7 +104,7 @@ if (latitude && longitude) {
           const prop = zdata.property || zdata;
 
           zestimate = prop?.zestimate || "";
-          listed = prop?.homeStatus || "";
+          status = prop?.homeStatus || "";
         } catch (err) {
           console.log("Zillow lookup failed:", err);
         }
@@ -145,9 +113,6 @@ if (latitude && longitude) {
       /* =========================================
          GEO LOCATION + CITY / STATE / COUNTY
       ========================================= */
-
-      let geoLocation = "";
-      let geoUnder100 = "No";
 
       if (latitude && longitude) {
         try {
@@ -161,27 +126,39 @@ if (latitude && longitude) {
           );
 
           const gdata = await geo.json();
+          console.log("Reverse geocode response:", gdata);
 
           const geoCity =
-            gdata.address.city ||
-            gdata.address.town ||
-            gdata.address.village ||
+            gdata.address?.city ||
+            gdata.address?.town ||
+            gdata.address?.village ||
+            gdata.address?.hamlet ||
+            gdata.address?.suburb ||
             "";
 
-          const geoState = gdata.address.state || "";
-          const geoCounty = gdata.address.county || "";
+          const geoState = gdata.address?.state || "";
 
-          geoLocation = `${geoCity}, ${geoState}, ${geoCounty}`;
+          const geoCounty =
+            gdata.address?.county ||
+            gdata.address?.neighbourhood ||
+            gdata.address?.suburb ||
+            "";
+
+          geoLocation = `${geoCity}, ${geoState}, ${geoCounty}`
+            .replace(/^,\s*/, "")
+            .replace(/,\s*,/g, ", ")
+            .replace(/,\s*$/, "")
+            .trim();
         } catch (err) {
           console.log("Geo lookup failed:", err);
         }
 
-        for (const city of majorCities) {
+        for (const metro of majorCities) {
           const dist = distanceMiles(
             Number(latitude),
             Number(longitude),
-            city.lat,
-            city.lon
+            metro.lat,
+            metro.lon
           );
 
           if (dist <= 100) {
@@ -190,6 +167,14 @@ if (latitude && longitude) {
           }
         }
       }
+
+      console.log("FINAL GEO:", {
+        fullAddress,
+        latitude,
+        longitude,
+        geoLocation,
+        geoUnder100
+      });
 
       const ip =
         request.headers.get("cf-connecting-ip") ||
@@ -200,47 +185,50 @@ if (latitude && longitude) {
 
       const row = [
         new Date().toLocaleString("en-US", { timeZone: "America/New_York" }), // Date
-        firstName,                                   // First Name
-        lastName,                                    // Last Name
-        fullAddress,                                 // Address
-        phone,                                       // PhoneNumber
-        email,                                       // Email
+        firstName,                                  // First Name
+        lastName,                                   // Last Name
+        fullAddress,                                // Address
+        body.phone || "",                           // PhoneNumber
+        body.email || "",                           // Email
 
-        "", "", "", "", "",                         // blank cols
+        "",                                         // G
+        "",                                         // H
+        "",                                         // I
+        "",                                         // J
 
-        "",                                          // Motivation Scale
-        "",                                          // Disposition
-        "",                                          // Deal Spread
-        "",                                          // Contract Date
-        "",                                          // Notes
-        body.motivation || "",                       // Motivation
-        body.asking_price || "",                     // AskingPrice
-        body.listed || "",                           // Listed
-        zestimate,                                   // Zestimate
-        listed,                                      // Status
-        geoLocation,                                 // Geolocation
-        geoUnder100,                                 // Geo <100
-        body.fb_event_name || "Lead",                // FB_Event_Name
-        body.fb_event_time || now.toISOString(),     // FB_Event_Time
-        body.fb_value || "",                         // FB_Value
-        body.fb_currency || "USD",                   // FB_Currency
-        body.fb_sent || "",                          // FB_Sent
-        city,                                        // City
-        state,                                       // State
-        postalCode,                                  // Postal Code
-        country,                                     // Country
-        body.fbclid || "",                           // FBCLID
-        body.fbc || "",                              // FBC
-        body.fbp || "",                              // FBP
-        body.utm_source || "",                       // utm_source
-        body.utm_campaign_name || "",                // utm_campaign_name
-        body.utm_campaign || "",                     // utm_campaign
-        body.utm_adgroup || "",                      // utm_adgroup
-        body.utm_ad || "",                           // utm_ad
-        body.utm_term || "",                         // utm_term
-        body.utm_device || "",                       // utm_device
-        ip,                                          // IP
-        userAgent,                                   // User Agent
+        "",                                         // Motivation Scale
+        "",                                         // Disposition
+        "",                                         // Deal Spread
+        "",                                         // Contract Date
+        "",                                         // Notes
+        body.motivation || "",                      // Motivation
+        body.asking_price || "",                    // AskingPrice
+        body.listed || "",                          // Listed
+        zestimate,                                  // Zestimate
+        status,                                     // Status
+        geoLocation,                                // Geolocation
+        geoUnder100,                                // Geo <100
+        body.fb_event_name || "Lead",               // FB_Event_Name
+        body.fb_event_time || now.toISOString(),    // FB_Event_Time
+        body.fb_value || "",                        // FB_Value
+        body.fb_currency || "USD",                  // FB_Currency
+        body.fb_sent || "",                         // FB_Sent
+        city,                                       // City
+        state,                                      // State
+        postalCode,                                 // Postal Code
+        country,                                    // Country
+        body.fbclid || "",                          // FBCLID
+        body.fbc || "",                             // FBC
+        body.fbp || "",                             // FBP
+        body.utm_source || "",                      // utm_source
+        body.utm_campaign_name || "",               // utm_campaign_name
+        body.utm_campaign || "",                    // utm_campaign
+        body.utm_adgroup || "",                     // utm_adgroup
+        body.utm_ad || "",                          // utm_ad
+        body.utm_term || "",                        // utm_term
+        body.utm_device || "",                      // utm_device
+        ip,                                         // IP
+        userAgent,                                  // User Agent
         body.url || request.headers.get("referer") || "" // URL
       ];
 
@@ -276,6 +264,10 @@ if (latitude && longitude) {
     }
   }
 };
+
+/* =========================================
+   MAJOR U.S. METRO AREAS
+========================================= */
 
 const majorCities = [
   { name: "New York", lat: 40.7128, lon: -74.0060 },
@@ -350,6 +342,10 @@ const majorCities = [
   { name: "Charleston", lat: 32.7765, lon: -79.9311 }
 ];
 
+/* =========================================
+   DISTANCE CALCULATOR
+========================================= */
+
 function distanceMiles(lat1, lon1, lat2, lon2) {
   const R = 3958.8;
   const toRad = d => d * Math.PI / 180;
@@ -364,6 +360,7 @@ function distanceMiles(lat1, lon1, lat2, lon2) {
     Math.sin(dLon / 2) ** 2;
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
   return R * c;
 }
 
