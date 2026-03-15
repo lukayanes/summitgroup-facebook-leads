@@ -166,7 +166,7 @@ export default {
         request.headers.get("user-agent") || "";
 
       const row = [
-        new Date().toLocaleString("en-US", { timeZone: "America/Chicago" }), // Date
+        new Date().toLocaleString("en-US", { timeZone: "America/New_York" }), // Date
         firstName,                                   // First Name
         lastName,                                    // Last Name
         fullAddress,                                 // Address
