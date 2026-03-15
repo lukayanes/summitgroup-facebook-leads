@@ -169,7 +169,7 @@ export default {
         "", "", "", "", "",                         // blank cols
 
         "",                                          // Motivation Scale
-        "Lead",                                      // Disposition
+        "",                                          // Disposition
         "",                                          // Deal Spread
         "",                                          // Contract Date
         "",                                          // Notes
