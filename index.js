@@ -1,209 +1,165 @@
 export default {
   async fetch(request, env) {
-
-    const VERIFY_TOKEN = env.VERIFY_TOKEN;
-
-    /* FACEBOOK WEBHOOK VERIFICATION */
-    if (request.method === "GET") {
-
-      const url = new URL(request.url);
-
-      if (
-        url.searchParams.get("hub.mode") === "subscribe" &&
-        url.searchParams.get("hub.verify_token") === VERIFY_TOKEN
-      ) {
-        return new Response(
-          url.searchParams.get("hub.challenge"),
-          { status: 200 }
-        );
-      }
-
-      return new Response("Verification failed", { status: 403 });
+    if (request.method !== "POST") {
+      return new Response("Worker ready");
     }
 
+    try {
+      const body = await request.json();
+      const now = new Date();
 
-    /* FACEBOOK LEAD RECEIVED */
-    if (request.method === "POST") {
+      const firstName = body.first_name || body.firstName || "";
+      const lastName = body.last_name || body.lastName || "";
 
-      try {
+      const street = body.address1 || body.address || "";
+      const city = body.city || "";
+      const state = body.state || "";
+      const postalCode = body.postal_code || body.postalCode || body.zip || "";
+      const country = body.country || "US";
 
-        const body = await request.json();
+      const fullAddress = [
+        street,
+        city,
+        state,
+        postalCode
+      ].filter(Boolean).join(", ");
 
-        const change = body.entry?.[0]?.changes?.[0]?.value;
+      /* =========================================
+         GET ZILLOW DATA
+      ========================================= */
 
-        if (!change?.leadgen_id) {
-          return new Response("No leadgen_id", { status: 200 });
+      let zestimate = "";
+      let status = "";
+
+      if (fullAddress) {
+        try {
+          const zillow = await fetch(
+            `https://zllw-working-api.p.rapidapi.com/byaddress?propertyaddress=${encodeURIComponent(fullAddress)}`,
+            {
+              method: "GET",
+              headers: {
+                "x-rapidapi-host": "zllw-working-api.p.rapidapi.com",
+                "x-rapidapi-key": env.ZILLOW_KEY
+              }
+            }
+          );
+
+          const zdata = await zillow.json();
+          console.log("Zillow response:", zdata);
+
+          const prop = zdata.property || zdata;
+
+          zestimate = prop?.zestimate || "";
+          status = prop?.homeStatus || "";
+        } catch (err) {
+          console.log("Zillow lookup failed:", err);
         }
-
-
-        /* FETCH FULL LEAD FROM FACEBOOK */
-
-        const fbRes = await fetch(
-          `https://graph.facebook.com/v19.0/${change.leadgen_id}?fields=created_time,ad_name,adset_name,campaign_name,field_data&access_token=${env.FB_ACCESS_TOKEN}`
-        );
-
-        const fbData = await fbRes.json();
-
-
-        /* EXTRACT FIELDS */
-
-        const fields = {};
-
-        (fbData.field_data || []).forEach(field => {
-          fields[field.name] = field.values[0];
-        });
-
-
-        const now = new Date();
-
-
-        const address = [
-          fields.street_address,
-          fields.city,
-          fields.state,
-          fields.zip
-        ].filter(Boolean).join(", ");
-
-
-
-        /* YOUR EXACT SHEET COLUMN ORDER */
-
-        const row = [
-
-          now.toLocaleString(),   // Date
-
-          fields.full_name || "",
-
-          address,
-
-          fields.phone_number || "",
-
-          fields.email || "",
-
-          "", "", "", "", "",
-
-          "",
-
-          "Lead",
-
-          "",
-
-          "",
-
-          "",
-
-          "",
-
-          "",
-
-          "",
-
-          "Lead",
-
-          "",
-
-          "",
-
-          "Lead",
-
-          now.toISOString(),
-
-          "",
-
-          "USD",
-
-          "",
-
-          "facebook",
-
-          fbData.campaign_name || "",
-
-          fbData.campaign_name || "",
-
-          fbData.adset_name || "",
-
-          fbData.ad_name || "",
-
-          "",
-
-          "facebook_lead_form"
-
-        ];
-
-
-        /* GOOGLE SHEETS AUTH */
-
-        const token = await getAccessToken(env);
-
-
-        /* APPEND TO SHEET */
-
-        await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEET_ID}/values/A1:append?valueInputOption=USER_ENTERED`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              values: [row]
-            })
-          }
-        );
-
-
-        return new Response("Success");
-
-      } catch (err) {
-
-        return new Response(err.toString(), { status: 500 });
-
       }
 
+      const ip =
+        request.headers.get("cf-connecting-ip") ||
+        request.headers.get("x-forwarded-for") ||
+        "";
+
+      const userAgent =
+        request.headers.get("user-agent") || "";
+
+      const row = [
+        now.toLocaleString(),                        // Date
+        firstName,                                  // First Name
+        lastName,                                   // Last Name
+        fullAddress,                                // Address
+        body.phone || "",                           // PhoneNumber
+        body.email || "",                           // Email
+
+        "",                                         // Motivation Scale
+        "",                                         // Disposition
+        "",                                         // Deal Spread
+        "",                                         // Contract Date
+        "",                                         // Notes
+
+        body.motivation || "",                      // Motivation
+        body.asking_price || "",                    // AskingPrice
+        body.listed || "",                          // Listed
+        zestimate,                                  // Zestimate
+        status,                                     // Status
+        body.geolocation || "",                     // Geolocation
+        body.geo_under_100 || body["geo<100"] || "",// Geo <100
+        body.fb_event_name || "Lead",               // FB_Event_Name
+        body.fb_event_time || now.toISOString(),    // FB_Event_Time
+        body.fb_value || "",                        // FB_Value
+        body.fb_currency || "USD",                  // FB_Currency
+        body.fb_sent || "",                         // FB_Sent
+        city,                                       // City
+        state,                                      // State
+        postalCode,                                 // Postal Code
+        country,                                    // Country
+        body.fbclid || "",                          // FBCLID
+        body.fbc || "",                             // FBC
+        body.fbp || "",                             // FBP
+        body.utm_source || "",                      // utm_source
+        body.utm_campaign_name || "",               // utm_campaign_name
+        body.utm_campaign || "",                    // utm_campaign
+        body.utm_adgroup || "",                     // utm_adgroup
+        body.utm_ad || "",                          // utm_ad
+        body.utm_term || "",                        // utm_term
+        body.utm_device || "",                      // utm_device
+        ip,                                         // IP
+        userAgent,                                  // User Agent
+        body.url || request.headers.get("referer") || "" // URL
+      ];
+
+      const token = await getAccessToken(env);
+
+      const sheetsRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${env.SHEET_ID}/values/A1:append?valueInputOption=USER_ENTERED`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            values: [row]
+          })
+        }
+      );
+
+      const sheetsData = await sheetsRes.json();
+
+      if (!sheetsRes.ok) {
+        return new Response(
+          `Sheets API error: ${JSON.stringify(sheetsData)}`,
+          { status: 500 }
+        );
+      }
+
+      return new Response("Success");
+    } catch (err) {
+      return new Response(err.toString(), { status: 500 });
     }
-
-
-    return new Response("Invalid");
-
   }
 };
 
-
-
-
 /* GOOGLE ACCESS TOKEN */
-
 async function getAccessToken(env) {
-
   const jwt = await createJWT(env);
 
-  const res = await fetch(
-    "https://oauth2.googleapis.com/token",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type":
-          "application/x-www-form-urlencoded"
-      },
-      body:
-        `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
-    }
-  );
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body:
+      `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+  });
 
   const data = await res.json();
-
   return data.access_token;
-
 }
 
-
-
-
 /* CREATE JWT */
-
 async function createJWT(env) {
-
   const header = {
     alg: "RS256",
     typ: "JWT"
@@ -225,10 +181,7 @@ async function createJWT(env) {
       .replace(/\+/g, "-")
       .replace(/\//g, "_");
 
-
-  const unsigned =
-    `${encode(header)}.${encode(payload)}`;
-
+  const unsigned = `${encode(header)}.${encode(payload)}`;
 
   const key = await crypto.subtle.importKey(
     "pkcs8",
@@ -241,55 +194,36 @@ async function createJWT(env) {
     ["sign"]
   );
 
-
   const signature = await crypto.subtle.sign(
     "RSASSA-PKCS1-v1_5",
     key,
     new TextEncoder().encode(unsigned)
   );
 
-
-  const signed =
-    btoa(String.fromCharCode(...new Uint8Array(signature)))
-      .replace(/=/g, "")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_");
-
+  const signed = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
 
   return `${unsigned}.${signed}`;
-
 }
 
-
-
-
 /* FIX PRIVATE KEY FORMAT */
-
 function pemToArrayBuffer(pem) {
-
-  pem = pem.replace(/\\n/g, '\n').trim();
+  pem = pem.replace(/\\n/g, "\n").trim();
 
   const base64 = pem
     .replace(/-----BEGIN PRIVATE KEY-----/, "")
     .replace(/-----END PRIVATE KEY-----/, "")
     .replace(/\s+/g, "");
 
-
   const binary = atob(base64);
-
-
   const buffer = new ArrayBuffer(binary.length);
-
   const view = new Uint8Array(buffer);
 
-
   for (let i = 0; i < binary.length; i++) {
-
     view[i] = binary.charCodeAt(i);
-
   }
 
-
   return buffer;
-
 }
