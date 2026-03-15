@@ -64,7 +64,7 @@ export default {
       const userAgent =
         request.headers.get("user-agent") || "";
 
-      const row = [
+ const row = [
   now.toLocaleString(),                         // Date
   firstName,                                   // First Name
   lastName,                                    // Last Name
@@ -76,9 +76,10 @@ export default {
   "",                                          // blank col 8
   "",                                          // blank col 9
   "",                                          // blank col 10
+  "",                                          // blank col 11
 
   "",                                          // Motivation Scale
-  "",                                          // Disposition
+  "Lead",                                      // Disposition
   "",                                          // Deal Spread
   "",                                          // Contract Date
   "",                                          // Notes
@@ -87,7 +88,7 @@ export default {
   body.asking_price || "",                     // AskingPrice
   body.listed || "",                           // Listed
   zestimate,                                   // Zestimate
-  status,                                      // Status
+  "Lead",                                      // Status
   body.geolocation || "",                      // Geolocation
   body.geo_under_100 || body["geo<100"] || "", // Geo <100
   body.fb_event_name || "Lead",                // FB_Event_Name
