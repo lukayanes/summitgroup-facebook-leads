@@ -38,38 +38,78 @@ export default {
         state,
         postalCode
       ].filter(Boolean).join(", ");
+/* =========================================
+   GEO LOCATION + CITY / STATE / COUNTY
+========================================= */
 
-      /* =========================================
-         GEOCODE ADDRESS (GET LAT / LON)
-      ========================================= */
+let geoLocation = "";
+let geoUnder100 = "No";
 
-      let latitude = "";
-      let longitude = "";
-
-      if (fullAddress) {
-        try {
-          const geo = await fetch(
-            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(fullAddress)}&format=json&limit=1`,
-            {
-              headers: {
-                "User-Agent": "SummitGroupLeadSystem"
-              }
-            }
-          );
-
-          const gdata = await geo.json();
-
-          if (gdata && gdata.length > 0) {
-            latitude = gdata[0].lat;
-            longitude = gdata[0].lon;
-          }
-
-          console.log("Geocoded lat/lon:", latitude, longitude);
-        } catch (err) {
-          console.log("Geocode failed:", err);
+if (latitude && longitude) {
+  try {
+    const geo = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
+      {
+        headers: {
+          "User-Agent": "SummitGroupLeadSystem"
         }
       }
+    );
 
+    const gdata = await geo.json();
+    console.log("Reverse geocode response:", gdata);
+
+    const addr = gdata.address || {};
+
+    const primaryPlace =
+      addr.city ||
+      addr.town ||
+      addr.village ||
+      addr.hamlet ||
+      addr.municipality ||
+      addr.suburb ||
+      addr.neighbourhood ||
+      "";
+
+    const stateName = addr.state || "";
+
+    let thirdPlace =
+      addr.county ||
+      addr.suburb ||
+      addr.neighbourhood ||
+      addr.city_district ||
+      "";
+
+    if (
+      thirdPlace &&
+      primaryPlace &&
+      thirdPlace.toLowerCase() === primaryPlace.toLowerCase()
+    ) {
+      thirdPlace = "";
+    }
+
+    geoLocation = [primaryPlace, stateName, thirdPlace]
+      .filter(Boolean)
+      .join(", ");
+
+  } catch (err) {
+    console.log("Geo lookup failed:", err);
+  }
+
+  for (const city of majorCities) {
+    const dist = distanceMiles(
+      Number(latitude),
+      Number(longitude),
+      city.lat,
+      city.lon
+    );
+
+    if (dist <= 100) {
+      geoUnder100 = "Yes";
+      break;
+    }
+  }
+}
       /* =========================================
          GET ZILLOW DATA
       ========================================= */
