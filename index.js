@@ -266,6 +266,52 @@ export default {
   }
 };
 
+/* ===============================
+   SMS ALERT
+=============================== */
+const name = `${firstName} ${lastName}`.trim();
+const phone = body.phone || "";
+const email = body.email || "";
+const address = fullAddress || "";
+const message = body.message || body.notes || "";
+
+const smsBody =
+`🏠 New Summit Group Facebook Lead
+
+Address: ${address}
+Name: ${name}
+Phone: ${phone}
+Email: ${email}
+Message: ${message}`;
+
+const auth = btoa(
+  `${env.TWILIO_API_KEY_SID}:${env.TWILIO_API_KEY_SECRET}`
+);
+
+const alertNumbers = [
+  "+19139577764",
+  "+13149549428",
+  "+19136895770"
+];
+
+for (const to of alertNumbers) {
+  await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        To: to,
+        MessagingServiceSid: env.TWILIO_MESSAGING_SERVICE,
+        Body: smsBody
+      })
+    }
+  );
+}
+
 /* =========================================
    MAJOR U.S. METRO AREAS
 ========================================= */
