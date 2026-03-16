@@ -18,9 +18,9 @@ export default {
       const state = body.state || "";
       const postalCode = body.postal_code || "";
       const country = body.country || "US";
-
+      
       const street = body.address1 || "";
-
+      
       const fullAddress = [
         street,
         city,
@@ -28,13 +28,16 @@ export default {
         postalCode,
         country
       ].filter(Boolean).join(", ");
-
+      
       console.log("Address fields received:", {
-        address: body.address,
-        address1: body.address1,
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        email,
+        address1: street,
         city,
         state,
-        postal_code: body.postal_code,
+        postal_code: postalCode,
         country,
         fullAddress
       });
@@ -184,53 +187,52 @@ export default {
       const userAgent = request.headers.get("user-agent") || "";
 
       const row = [
-        new Date().toLocaleString("en-US", { timeZone: "America/New_York" }), // Date
-        firstName, // First Name
-        lastName, // Last Name
-        fullAddress, // Address
-        body.phone || "", // PhoneNumber
-        body.email || "", // Email
-        "", // G
-        "", // H
-        "", // I
-        "", // J
-        "", // K
-        "", // Motivation Scale
-        "", // Disposition
-        "", // Deal Spread
-        "", // Contract Date
-        "", // Notes
-        body.motivation || "", // Motivation
-        body.asking_price || "", // AskingPrice
-        body.listed || "", // Listed
-        zestimate, // Zestimate
-        status, // Status
-        geoLocation, // Geolocation
-        geoUnder100, // Geo <100
-        body.fb_event_name || "Lead", // FB_Event_Name
-        body.fb_event_time || now.toISOString(), // FB_Event_Time
-        body.fb_value || "", // FB_Value
-        body.fb_currency || "USD", // FB_Currency
-        body.fb_sent || "", // FB_Sent
-        city, // City
-        state, // State
-        postalCode, // Postal Code
-        country, // Country
-        body.fbclid || "", // FBCLID
-        body.fbc || "", // FBC
-        body.fbp || "", // FBP
-        body.utm_source || "", // utm_source
-        body.utm_campaign_name || "", // utm_campaign_name
-        body.utm_campaign || "", // utm_campaign
-        body.utm_adgroup || "", // utm_adgroup
-        body.utm_ad || "", // utm_ad
-        body.utm_term || "", // utm_term
-        body.utm_device || "", // utm_device
-        ip, // IP
-        userAgent, // User Agent
-        body.url || request.headers.get("referer") || "" // URL
-      ];
-
+      new Date().toLocaleString("en-US", { timeZone: "America/New_York" }),
+      firstName,
+      lastName,
+      fullAddress,
+      phone,
+      email,
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      body.motivation || "",
+      body.asking_price || "",
+      body.listed || "",
+      zestimate,
+      status,
+      geoLocation,
+      geoUnder100,
+      body.fb_event_name || "Lead",
+      body.fb_event_time || now.toISOString(),
+      body.fb_value || "",
+      body.fb_currency || "USD",
+      body.fb_sent || "",
+      city,
+      state,
+      postalCode,
+      country,
+      body.fbclid || "",
+      body.fbc || "",
+      body.fbp || "",
+      body.utm_source || "",
+      body.utm_campaign_name || "",
+      body.utm_campaign || "",
+      body.utm_adgroup || "",
+      body.utm_ad || "",
+      body.utm_term || "",
+      body.utm_device || "",
+      ip,
+      userAgent,
+      body.url || request.headers.get("referer") || ""
+    ];
       const token = await getAccessToken(env);
 
       const sheetsRes = await fetch(
