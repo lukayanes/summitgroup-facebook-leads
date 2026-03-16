@@ -78,17 +78,30 @@ export default {
         }
       }
 
-      /* =========================================
+           /* =========================================
          GET ZILLOW DATA
       ========================================= */
 
       let zestimate = "";
       let status = "";
 
-      if (fullAddress) {
+      const streetOnly = (body.address1 || body.address || "")
+        .replace(/,\s*USA$/i, "")
+        .trim();
+
+      const zillowAddress = [
+        streetOnly,
+        city,
+        state,
+        postalCode
+      ].filter(Boolean).join(", ");
+
+      console.log("Zillow lookup address:", zillowAddress);
+
+      if (zillowAddress) {
         try {
           const zillow = await fetch(
-            `https://zllw-working-api.p.rapidapi.com/byaddress?propertyaddress=${encodeURIComponent(fullAddress)}`,
+            `https://zllw-working-api.p.rapidapi.com/byaddress?propertyaddress=${encodeURIComponent(zillowAddress)}`,
             {
               method: "GET",
               headers: {
@@ -109,7 +122,6 @@ export default {
           console.log("Zillow lookup failed:", err);
         }
       }
-
       /* =========================================
          GEO LOCATION + CITY / STATE / COUNTY
       ========================================= */
