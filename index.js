@@ -8,61 +8,10 @@ export default {
       const body = await request.json();
       const now = new Date();
 
-            const recaptchaToken = body.recaptcha_token || "";
-
-      if (!recaptchaToken) {
-        return new Response("Missing reCAPTCHA token", { status: 400 });
-      }
-
-      const googleAccessToken = await getGoogleAccessToken(env);
-
-      const assessmentRes = await fetch(
-        `https://recaptchaenterprise.googleapis.com/v1/projects/${env.RECAPTCHA_PROJECT_ID}/assessments`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${googleAccessToken}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            event: {
-              token: recaptchaToken,
-              siteKey: "6LdBUYwsAAAAABtvWLcy5v8-ZT5-qvr2Q6x8DV0G",
-              expectedAction: "submit_lead"
-            }
-          })
-        }
-      );
-
-      const assessmentData = await assessmentRes.json();
-      console.log("reCAPTCHA assessment:", JSON.stringify(assessmentData, null, 2));
-
-      if (!assessmentRes.ok) {
-        return new Response(
-          `reCAPTCHA assessment failed: ${JSON.stringify(assessmentData)}`,
-          { status: 500 }
-        );
-      }
-
-      if (!assessmentData.tokenProperties?.valid) {
-        return new Response("Invalid reCAPTCHA token", { status: 400 });
-      }
-
-      if (assessmentData.tokenProperties?.action !== "submit_lead") {
-        return new Response("Invalid reCAPTCHA action", { status: 400 });
-      }
-
-      const score = assessmentData.riskAnalysis?.score ?? 0;
-
-      if (score < 0.5) {
-        return new Response("Blocked as suspicious traffic", { status: 403 });
-      }
-
       console.log("RAW BODY:", JSON.stringify(body, null, 2));
 
       const firstName = body.first_name || body.firstName || "";
       const lastName = body.last_name || body.lastName || "";
-
       const city = body.city || "";
       const state = body.state || "";
       const postalCode = body.postal_code || body.postalCode || body.zip || "";
@@ -97,7 +46,6 @@ export default {
       /* =========================================
          GET GEOCODE FROM ADDRESS
       ========================================= */
-
       let latitude = "";
       let longitude = "";
       let geoLocation = "";
@@ -128,10 +76,9 @@ export default {
         }
       }
 
-           /* =========================================
+      /* =========================================
          GET ZILLOW DATA
       ========================================= */
-
       let zestimate = "";
       let status = "";
 
@@ -139,12 +86,9 @@ export default {
         .replace(/,\s*USA$/i, "")
         .trim();
 
-      const zillowAddress = [
-        streetOnly,
-        city,
-        state,
-        postalCode
-      ].filter(Boolean).join(", ");
+      const zillowAddress = [streetOnly, city, state, postalCode]
+        .filter(Boolean)
+        .join(", ");
 
       console.log("Zillow lookup address:", zillowAddress);
 
@@ -165,17 +109,16 @@ export default {
           console.log("Zillow response:", zdata);
 
           const prop = zdata.property || zdata;
-
           zestimate = prop?.zestimate || "";
           status = prop?.homeStatus || "";
         } catch (err) {
           console.log("Zillow lookup failed:", err);
         }
       }
+
       /* =========================================
          GEO LOCATION + CITY / STATE / COUNTY
       ========================================= */
-
       if (latitude && longitude) {
         try {
           const geo = await fetch(
@@ -199,7 +142,6 @@ export default {
             "";
 
           const geoState = gdata.address?.state || "";
-
           const geoCounty =
             gdata.address?.county ||
             gdata.address?.neighbourhood ||
@@ -247,51 +189,49 @@ export default {
 
       const row = [
         new Date().toLocaleString("en-US", { timeZone: "America/New_York" }), // Date
-        firstName,                                  // First Name
-        lastName,                                   // Last Name
-        fullAddress,                                // Address
-        body.phone || "",                           // PhoneNumber
-        body.email || "",                           // Email
-
-        "",                                         // G
-        "",                                         // H
-        "",                                         // I
-        "",                                         // J
-        "",                                         // J
-
-        "",                                         // Motivation Scale
-        "",                                         // Disposition
-        "",                                         // Deal Spread
-        "",                                         // Contract Date
-        "",                                         // Notes
-        body.motivation || "",                      // Motivation
-        body.asking_price || "",                    // AskingPrice
-        body.listed || "",                          // Listed
-        zestimate,                                  // Zestimate
-        status,                                     // Status
-        geoLocation,                                // Geolocation
-        geoUnder100,                                // Geo <100
-        body.fb_event_name || "Lead",               // FB_Event_Name
-        body.fb_event_time || now.toISOString(),    // FB_Event_Time
-        body.fb_value || "",                        // FB_Value
-        body.fb_currency || "USD",                  // FB_Currency
-        body.fb_sent || "",                         // FB_Sent
-        city,                                       // City
-        state,                                      // State
-        postalCode,                                 // Postal Code
-        country,                                    // Country
-        body.fbclid || "",                          // FBCLID
-        body.fbc || "",                             // FBC
-        body.fbp || "",                             // FBP
-        body.utm_source || "",                      // utm_source
-        body.utm_campaign_name || "",               // utm_campaign_name
-        body.utm_campaign || "",                    // utm_campaign
-        body.utm_adgroup || "",                     // utm_adgroup
-        body.utm_ad || "",                          // utm_ad
-        body.utm_term || "",                        // utm_term
-        body.utm_device || "",                      // utm_device
-        ip,                                         // IP
-        userAgent,                                  // User Agent
+        firstName, // First Name
+        lastName, // Last Name
+        fullAddress, // Address
+        body.phone || "", // PhoneNumber
+        body.email || "", // Email
+        "", // G
+        "", // H
+        "", // I
+        "", // J
+        "", // K
+        "", // Motivation Scale
+        "", // Disposition
+        "", // Deal Spread
+        "", // Contract Date
+        "", // Notes
+        body.motivation || "", // Motivation
+        body.asking_price || "", // AskingPrice
+        body.listed || "", // Listed
+        zestimate, // Zestimate
+        status, // Status
+        geoLocation, // Geolocation
+        geoUnder100, // Geo <100
+        body.fb_event_name || "Lead", // FB_Event_Name
+        body.fb_event_time || now.toISOString(), // FB_Event_Time
+        body.fb_value || "", // FB_Value
+        body.fb_currency || "USD", // FB_Currency
+        body.fb_sent || "", // FB_Sent
+        city, // City
+        state, // State
+        postalCode, // Postal Code
+        country, // Country
+        body.fbclid || "", // FBCLID
+        body.fbc || "", // FBC
+        body.fbp || "", // FBP
+        body.utm_source || "", // utm_source
+        body.utm_campaign_name || "", // utm_campaign_name
+        body.utm_campaign || "", // utm_campaign
+        body.utm_adgroup || "", // utm_adgroup
+        body.utm_ad || "", // utm_ad
+        body.utm_term || "", // utm_term
+        body.utm_device || "", // utm_device
+        ip, // IP
+        userAgent, // User Agent
         body.url || request.headers.get("referer") || "" // URL
       ];
 
@@ -305,9 +245,7 @@ export default {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            values: [row]
-          })
+          body: JSON.stringify({ values: [row] })
         }
       );
 
@@ -331,7 +269,6 @@ export default {
 /* =========================================
    MAJOR U.S. METRO AREAS
 ========================================= */
-
 const majorCities = [
   { name: "New York", lat: 40.7128, lon: -74.0060 },
   { name: "Los Angeles", lat: 34.0522, lon: -118.2437 },
@@ -408,22 +345,19 @@ const majorCities = [
 /* =========================================
    DISTANCE CALCULATOR
 ========================================= */
-
 function distanceMiles(lat1, lon1, lat2, lon2) {
   const R = 3958.8;
   const toRad = d => d * Math.PI / 180;
-
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
 
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) *
-    Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) ** 2;
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
   return R * c;
 }
 
@@ -436,8 +370,7 @@ async function getAccessToken(env) {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
     },
-    body:
-      `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`
   });
 
   const data = await res.json();
@@ -446,11 +379,7 @@ async function getAccessToken(env) {
 
 /* CREATE JWT */
 async function createJWT(env) {
-  const header = {
-    alg: "RS256",
-    typ: "JWT"
-  };
-
+  const header = { alg: "RS256", typ: "JWT" };
   const now = Math.floor(Date.now() / 1000);
 
   const payload = {
@@ -493,80 +422,6 @@ async function createJWT(env) {
 
   return `${unsigned}.${signed}`;
 }
-
-
-async function getGoogleAccessToken(env) {
-  const jwt = await createGoogleJWT(env);
-
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt
-    })
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(`Google token error: ${JSON.stringify(data)}`);
-  }
-
-  return data.access_token;
-}
-
-async function createGoogleJWT(env) {
-  const header = {
-    alg: "RS256",
-    typ: "JWT"
-  };
-
-  const now = Math.floor(Date.now() / 1000);
-
-  const payload = {
-    iss: env.CLIENT_EMAIL,
-    scope: "https://www.googleapis.com/auth/cloud-platform",
-    aud: "https://oauth2.googleapis.com/token",
-    exp: now + 3600,
-    iat: now
-  };
-
-  const encode = obj =>
-    btoa(JSON.stringify(obj))
-      .replace(/=/g, "")
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_");
-
-  const unsigned = `${encode(header)}.${encode(payload)}`;
-
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    pemToArrayBuffer(env.PRIVATE_KEY),
-    {
-      name: "RSASSA-PKCS1-v1_5",
-      hash: "SHA-256"
-    },
-    false,
-    ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    key,
-    new TextEncoder().encode(unsigned)
-  );
-
-  const signed = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/=/g, "")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_");
-
-  return `${unsigned}.${signed}`;
-}
-
 
 /* FIX PRIVATE KEY FORMAT */
 function pemToArrayBuffer(pem) {
