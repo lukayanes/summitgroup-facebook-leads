@@ -10,11 +10,13 @@ export default {
 
       console.log("RAW BODY:", JSON.stringify(body, null, 2));
 
-      const firstName = body.first_name || body.firstName || "";
-      const lastName = body.last_name || body.lastName || "";
+      const firstName = body.first_name || "";
+      const lastName = body.last_name || "";
+      const phone = body.phone || "";
+      const email = body.email || "";
       const city = body.city || "";
       const state = body.state || "";
-      const postalCode = body.postal_code || body.postalCode || body.zip || "";
+      const postalCode = body.postal_code || "";
       const country = body.country || "US";
 
       let fullAddress = "";
