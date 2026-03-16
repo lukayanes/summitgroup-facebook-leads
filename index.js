@@ -8,6 +8,56 @@ export default {
       const body = await request.json();
       const now = new Date();
 
+            const recaptchaToken = body.recaptcha_token || "";
+
+      if (!recaptchaToken) {
+        return new Response("Missing reCAPTCHA token", { status: 400 });
+      }
+
+      const googleAccessToken = await getGoogleAccessToken(env);
+
+      const assessmentRes = await fetch(
+        `https://recaptchaenterprise.googleapis.com/v1/projects/${env.RECAPTCHA_PROJECT_ID}/assessments`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${googleAccessToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            event: {
+              token: recaptchaToken,
+              siteKey: "6LdBUYwsAAAAABtvWLcy5v8-ZT5-qvr2Q6x8DV0G",
+              expectedAction: "submit_lead"
+            }
+          })
+        }
+      );
+
+      const assessmentData = await assessmentRes.json();
+      console.log("reCAPTCHA assessment:", JSON.stringify(assessmentData, null, 2));
+
+      if (!assessmentRes.ok) {
+        return new Response(
+          `reCAPTCHA assessment failed: ${JSON.stringify(assessmentData)}`,
+          { status: 500 }
+        );
+      }
+
+      if (!assessmentData.tokenProperties?.valid) {
+        return new Response("Invalid reCAPTCHA token", { status: 400 });
+      }
+
+      if (assessmentData.tokenProperties?.action !== "submit_lead") {
+        return new Response("Invalid reCAPTCHA action", { status: 400 });
+      }
+
+      const score = assessmentData.riskAnalysis?.score ?? 0;
+
+      if (score < 0.5) {
+        return new Response("Blocked as suspicious traffic", { status: 403 });
+      }
+
       console.log("RAW BODY:", JSON.stringify(body, null, 2));
 
       const firstName = body.first_name || body.firstName || "";
