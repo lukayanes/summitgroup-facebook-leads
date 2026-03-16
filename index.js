@@ -19,21 +19,15 @@ export default {
       const postalCode = body.postal_code || "";
       const country = body.country || "US";
 
-      let fullAddress = "";
+      const street = body.address1 || "";
 
-      if (body.address) {
-        fullAddress = body.address.trim();
-      } else if (body.address1 && body.address1.includes(",")) {
-        fullAddress = body.address1.trim();
-      } else {
-        fullAddress = [
-          body.address1 || "",
-          city,
-          state,
-          postalCode,
-          country
-        ].filter(Boolean).join(", ");
-      }
+      const fullAddress = [
+        street,
+        city,
+        state,
+        postalCode,
+        country
+      ].filter(Boolean).join(", ");
 
       console.log("Address fields received:", {
         address: body.address,
