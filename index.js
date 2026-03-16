@@ -265,7 +265,6 @@ const name = `${firstName} ${lastName}`.trim();
 const phone = body.phone || "";
 const email = body.email || "";
 const address = fullAddress || "";
-const message = body.message || body.notes || "";
 
 const smsBody =
 `🏠 New Summit Group Facebook Lead
@@ -274,7 +273,9 @@ Address: ${address}
 Name: ${name}
 Phone: ${phone}
 Email: ${email}
-Message: ${message}`;
+Listed: ${body.listed || ""}
+Motivation: ${body.motivation || ""}
+Asking Price: ${body.asking_price || ""}`;
 
 const auth = btoa(
   `${env.TWILIO_API_KEY_SID}:${env.TWILIO_API_KEY_SECRET}`
