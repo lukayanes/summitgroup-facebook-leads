@@ -494,6 +494,80 @@ async function createJWT(env) {
   return `${unsigned}.${signed}`;
 }
 
+
+async function getGoogleAccessToken(env) {
+  const jwt = await createGoogleJWT(env);
+
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt
+    })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(`Google token error: ${JSON.stringify(data)}`);
+  }
+
+  return data.access_token;
+}
+
+async function createGoogleJWT(env) {
+  const header = {
+    alg: "RS256",
+    typ: "JWT"
+  };
+
+  const now = Math.floor(Date.now() / 1000);
+
+  const payload = {
+    iss: env.CLIENT_EMAIL,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: "https://oauth2.googleapis.com/token",
+    exp: now + 3600,
+    iat: now
+  };
+
+  const encode = obj =>
+    btoa(JSON.stringify(obj))
+      .replace(/=/g, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+
+  const unsigned = `${encode(header)}.${encode(payload)}`;
+
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToArrayBuffer(env.PRIVATE_KEY),
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      hash: "SHA-256"
+    },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    new TextEncoder().encode(unsigned)
+  );
+
+  const signed = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/=/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_");
+
+  return `${unsigned}.${signed}`;
+}
+
+
 /* FIX PRIVATE KEY FORMAT */
 function pemToArrayBuffer(pem) {
   pem = pem.replace(/\\n/g, "\n").trim();
