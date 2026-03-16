@@ -249,22 +249,14 @@ export default {
         }
       );
 
-      const sheetsData = await sheetsRes.json();
+const sheetsData = await sheetsRes.json();
 
-      if (!sheetsRes.ok) {
-        return new Response(
-          `Sheets API error: ${JSON.stringify(sheetsData)}`,
-          { status: 500 }
-        );
-      }
-
-      return new Response("Success");
-    } catch (err) {
-      console.error("Worker Error:", err);
-      return new Response(err.toString(), { status: 500 });
-    }
-  }
-};
+if (!sheetsRes.ok) {
+  return new Response(
+    `Sheets API error: ${JSON.stringify(sheetsData)}`,
+    { status: 500 }
+  );
+}
 
 /* ===============================
    SMS ALERT
@@ -311,6 +303,8 @@ for (const to of alertNumbers) {
     }
   );
 }
+
+return new Response("Success");
 
 /* =========================================
    MAJOR U.S. METRO AREAS
