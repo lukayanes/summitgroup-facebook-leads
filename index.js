@@ -305,6 +305,12 @@ for (const to of alertNumbers) {
 }
 
 return new Response("Success");
+        } catch (err) {
+      console.error("Worker Error:", err);
+      return new Response(err.toString(), { status: 500 });
+    }
+  }
+};
 
 /* =========================================
    MAJOR U.S. METRO AREAS
