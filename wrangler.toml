@@ -6,3 +6,8 @@ workers_dev = true
 
 [vars]
 VERIFY_TOKEN = "summitflow123"
+
+[observability.logs]
+enabled = false
+invocation_logs = true
+
